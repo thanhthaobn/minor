@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MathJax CDN -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <!-- html2pdf.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        .btn-option {
+            width: 80px;
+            background-color: #1E90FF;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 8px;
+        }
+        .btn-option:hover {
+            background-color: #1873CC;
+        }
+        .btn-correct {
+            background-color: #32CD32;
+        }
+        .btn-correct:hover {
+            background-color: #28A428;
+        }
+        .btn-incorrect {
+            background-color: #FF6347;
+        }
+        .btn-incorrect:hover {
+            background-color: #D94F3A;
+        }
+        .btn-option:disabled {
+            opacity: 1;
+            cursor: default;
+        }
+        #timer-box {
+            background-color: #32CD32;
+            color: white;
+            font-size: 17px;
+            width: 300px;
+            height: 33px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            font-weight: bold;
+            margin: 0 auto 20px;
+        }
+        .certificate-container {
+            background-color: #ffffff;
+            border: 4px double #4CAF50;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .certificate-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 10px solid #f1f8e9;
+            pointer-events: none;
+        }
+        .option-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 10px;
+        }
+        .mathjax-formula {
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="quizContainer" class="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl">
+        <h1 class="text-2xl font-bold text-center text-red-700 mb-4">Bài tập Minor và Cofactor Ma Trận</h1>
+        <div id="introScreen" class="space-y-4 text-center">
+            <p>Vui lòng nhập thông tin sinh viên để bắt đầu:</p>
+            <input id="studentName" type="text" placeholder="Họ tên" class="w-full p-2 border rounded">
+            <input id="studentId" type="text" placeholder="MSSV" class="w-full p-2 border rounded">
+            <button id="startQuizButton" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Bắt đầu bài thi</button>
+        </div>
+        <div id="quizScreen" class="hidden">
+            <div id="timer-box">0</div>
+            <div id="questions" class="space-y-6"></div>
+            <div class="text-center mt-6">
+                <button onclick="finishQuiz()" class="bg-red-500 text-white p-2 rounded hover:bg-red-600">Nộp bài</button>
+            </div>
+        </div>
+        <div id="resultScreen" class="hidden text-center">
+            <h2 id="resultSummary" class="text-xl font-bold"></h2>
+            <div id="resultDetails" class="mt-4"></div>
+            <button onclick="showEmailContent()" class="mt-4 bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Chứng nhận</button>
+        </div>
+    </div>
+
+    <div id="emailModal" class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg max-w-2xl w-full">
+            <div id="emailContent"></div>
+            <div class="mt-4 flex justify-center space-x-4">
+                <button onclick="closeEmailModal()" class="bg-gray-500 text-white p-2 rounded hover:bg-gray-600">Đóng</button>
+                <button onclick="downloadPDF()" class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Tải PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let score = 0;
+        let studentName = '';
+        let studentId = '';
+        let seconds = 0;
+        let timerInterval = null;
+        let timerRunning = false;
+
+        const questions = [
+            // 5 câu hỏi tìm minor
+            {
+                text: "\\text{Câu 1. Tìm minor M_{12} của ma trận } A = \\begin{bmatrix} 3 & -1 & 2 \\\\ 0 & 5 & 4 \\\\ 2 & 1 & 6 \\end{bmatrix}",
+                correct_answer: "B",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "\\begin{vmatrix} 0 & 4 \\\\ 2 & 6 \\end{vmatrix} = 8",
+                    "\\begin{vmatrix} 0 & 4 \\\\ 2 & 6 \\end{vmatrix} = -8",
+                    "\\begin{vmatrix} 3 & 2 \\\\ 2 & 6 \\end{vmatrix} = 14",
+                    "\\begin{vmatrix} -1 & 2 \\\\ 5 & 4 \\end{vmatrix} = -14"
+                ],
+                explanation_links: ["https://byvn.net/minor1", "https://byvn.net/minor1"]
+            },
+            {
+                text: "\\text{Câu 2. Minor M_{23} của ma trận } B = \\begin{bmatrix} 2 & 4 & 1 \\\\ 3 & 0 & 5 \\\\ -2 & 1 & 4 \\end{bmatrix} \\text{ là:}",
+                correct_answer: "A",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "\\begin{vmatrix} 2 & 4 \\\\ -2 & 1 \\end{vmatrix} = 10",
+                    "\\begin{vmatrix} 3 & 5 \\\\ -2 & 4 \\end{vmatrix} = 22",
+                    "\\begin{vmatrix} 4 & 1 \\\\ 0 & 5 \\end{vmatrix} = 20",
+                    "\\begin{vmatrix} 2 & 1 \\\\ 3 & 5 \\end{vmatrix} = 7"
+                ],
+                explanation_links: ["https://byvn.net/minor2", "https://byvn.net/minor2"]
+            },
+            {
+                text: "\\text{Câu 3. Minor M_{31} của ma trận } C = \\begin{bmatrix} 1 & 0 & -2 \\\\ 3 & 1 & 4 \\\\ 2 & -1 & 0 \\end{bmatrix} \\text{ bằng:}",
+                correct_answer: "D",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "\\begin{vmatrix} 3 & 4 \\\\ 2 & 0 \\end{vmatrix} = -8",
+                    "\\begin{vmatrix} 1 & -2 \\\\ 3 & 4 \\end{vmatrix} = 10",
+                    "\\begin{vmatrix} 0 & -2 \\\\ 1 & 4 \\end{vmatrix} = -2",
+                    "\\begin{vmatrix} 0 & -2 \\\\ 1 & 4 \\end{vmatrix} = 2"
+                ],
+                explanation_links: ["https://byvn.net/minor3", "https://byvn.net/minor3"]
+            },
+            {
+                text: "\\text{Câu 4. Cho ma trận } D = \\begin{bmatrix} 5 & -1 & 3 \\\\ 2 & 0 & 4 \\\\ 1 & 3 & -2 \\end{bmatrix}. \\text{ Minor M_{22} là:}",
+                correct_answer: "C",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "\\begin{vmatrix} 5 & 3 \\\\ 1 & -2 \\end{vmatrix} = 13",
+                    "\\begin{vmatrix} -1 & 3 \\\\ 3 & -2 \\end{vmatrix} = -7",
+                    "\\begin{vmatrix} 5 & 3 \\\\ 1 & -2 \\end{vmatrix} = -13",
+                    "\\begin{vmatrix} 2 & 4 \\\\ 1 & -2 \\end{vmatrix} = -8"
+                ],
+                explanation_links: ["https://byvn.net/minor4", "https://byvn.net/minor4"]
+            },
+            {
+                text: "\\text{Câu 5. Tìm minor M_{11} của ma trận } E = \\begin{bmatrix} 4 & 2 & -1 \\\\ 0 & 3 & 5 \\\\ 1 & -2 & 6 \\end{bmatrix}",
+                correct_answer: "B",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "\\begin{vmatrix} 4 & -1 \\\\ 1 & 6 \\end{vmatrix} = 25",
+                    "\\begin{vmatrix} 3 & 5 \\\\ -2 & 6 \\end{vmatrix} = 28",
+                    "\\begin{vmatrix} 0 & 5 \\\\ 1 & 6 \\end{vmatrix} = -5",
+                    "\\begin{vmatrix} 2 & -1 \\\\ -2 & 6 \\end{vmatrix} = 10"
+                ],
+                explanation_links: ["https://byvn.net/minor5", "https://byvn.net/minor5"]
+            },
+            // 5 câu hỏi tìm cofactor
+            {
+                text: "\\text{Câu 6. Cofactor C_{13} của ma trận } F = \\begin{bmatrix} 2 & -1 & 3 \\\\ 0 & 4 & 5 \\\\ 1 & 2 & -2 \\end{bmatrix} \\text{ là:}",
+                correct_answer: "A",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "(-1)^{1+3} \\begin{vmatrix} 0 & 4 \\\\ 1 & 2 \\end{vmatrix} = -4",
+                    "(-1)^{2+3} \\begin{vmatrix} 2 & -1 \\\\ 1 & 2 \\end{vmatrix} = -5",
+                    "(-1)^{1+2} \\begin{vmatrix} 0 & 5 \\\\ 1 & -2 \\end{vmatrix} = 5",
+                    "(-1)^{3+1} \\begin{vmatrix} -1 & 3 \\\\ 4 & 5 \\end{vmatrix} = -17"
+                ],
+                explanation_links: ["https://byvn.net/cofactor1", "https://byvn.net/cofactor1"]
+            },
+            {
+                text: "\\text{Câu 7. Cofactor C_{21} của ma trận } G = \\begin{bmatrix} 1 & 0 & -2 \\\\ 3 & 1 & 4 \\\\ 2 & -1 & 0 \\end{bmatrix} \\text{ bằng:}",
+                correct_answer: "D",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "(-1)^{1+2} \\begin{vmatrix} 0 & -2 \\\\ -1 & 0 \\end{vmatrix} = 2",
+                    "(-1)^{2+2} \\begin{vmatrix} 1 & -2 \\\\ 2 & 0 \\end{vmatrix} = 4",
+                    "(-1)^{2+3} \\begin{vmatrix} 1 & 0 \\\\ 2 & -1 \\end{vmatrix} = 1",
+                    "(-1)^{2+1} \\begin{vmatrix} 0 & -2 \\\\ -1 & 0 \\end{vmatrix} = -2"
+                ],
+                explanation_links: ["https://byvn.net/cofactor2", "https://byvn.net/cofactor2"]
+            },
+            {
+                text: "\\text{Câu 8. Cho ma trận } H = \\begin{bmatrix} 4 & 1 & -3 \\\\ 2 & 0 & 5 \\\\ -1 & 3 & 2 \\end{bmatrix}. \\text{ Cofactor C_{32} là:}",
+                correct_answer: "C",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "(-1)^{3+1} \\begin{vmatrix} 1 & -3 \\\\ 0 & 5 \\end{vmatrix} = 5",
+                    "(-1)^{3+2} \\begin{vmatrix} 4 & -3 \\\\ 2 & 5 \\end{vmatrix} = 26",
+                    "(-1)^{3+2} \\begin{vmatrix} 4 & -3 \\\\ 2 & 5 \\end{vmatrix} = -26",
+                    "(-1)^{2+3} \\begin{vmatrix} 4 & 1 \\\\ -1 & 3 \\end{vmatrix} = -13"
+                ],
+                explanation_links: ["https://byvn.net/cofactor3", "https://byvn.net/cofactor3"]
+            },
+            {
+                text: "\\text{Câu 9. Cofactor C_{33} của ma trận } K = \\begin{bmatrix} -2 & 3 & 1 \\\\ 0 & 4 & -1 \\\\ 5 & 2 & 6 \\end{bmatrix} \\text{ bằng:}",
+                correct_answer: "B",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "(-1)^{3+3} \\begin{vmatrix} -2 & 0 \\\\ 3 & 4 \\end{vmatrix} = -8",
+                    "(-1)^{3+3} \\begin{vmatrix} -2 & 3 \\\\ 0 & 4 \\end{vmatrix} = -8",
+                    "(-1)^{1+3} \\begin{vmatrix} 0 & -1 \\\\ 5 & 6 \\end{vmatrix} = 5",
+                    "(-1)^{2+3} \\begin{vmatrix} -2 & 1 \\\\ 5 & 6 \\end{vmatrix} = 17"
+                ],
+                explanation_links: ["https://byvn.net/cofactor4", "https://byvn.net/cofactor4"]
+            },
+            {
+                text: "\\text{Câu 10. Tìm cofactor C_{12} của ma trận } L = \\begin{bmatrix} 1 & -2 & 3 \\\\ 4 & 0 & 5 \\\\ 2 & 1 & -1 \\end{bmatrix}",
+                correct_answer: "A",
+                options: ['A', 'B', 'C', 'D'],
+                formulas: [
+                    "(-1)^{1+2} \\begin{vmatrix} 4 & 5 \\\\ 2 & -1 \\end{vmatrix} = 14",
+                    "(-1)^{1+2} \\begin{vmatrix} 1 & 3 \\\\ 2 & -1 \\end{vmatrix} = 7",
+                    "(-1)^{2+1} \\begin{vmatrix} -2 & 3 \\\\ 1 & -1 \\end{vmatrix} = -1",
+                    "(-1)^{3+2} \\begin{vmatrix} 1 & 3 \\\\ 4 & 5 \\end{vmatrix} = 7"
+                ],
+                explanation_links: ["https://byvn.net/cofactor5", "https://byvn.net/cofactor5"]
+            }
+        ];
+
+        const totalQuestions = questions.length;
+
+        // Start quiz
+        function startQuiz() {
+            studentName = document.getElementById('studentName').value.trim();
+            studentId = document.getElementById('studentId').value.trim();
+            if (!studentName || !studentId) {
+                alert('Vui lòng nhập đầy đủ Họ tên và Mã số sinh viên!');
+                return;
+            }
+            document.getElementById('introScreen').classList.add('hidden');
+            document.getElementById('quizScreen').classList.remove('hidden');
+            seconds = 0;
+            timerRunning = true;
+            document.getElementById('timer-box').textContent = seconds;
+            timerInterval = setInterval(() => {
+                if (timerRunning) {
+                    seconds++;
+                    document.getElementById('timer-box').textContent = seconds;
+                }
+            }, 1000);
+            displayAllQuestions();
+        }
+
+        // Display all questions
+        function displayAllQuestions() {
+            const questionsDiv = document.getElementById('questions');
+            questionsDiv.innerHTML = '';
+            questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'mb-8';
+                questionDiv.innerHTML = `<div class="text-center mb-4 font-bold">\\(${question.text}\\)</div>`;
+                
+                const optionsDiv = document.createElement('div');
+                optionsDiv.className = 'flex justify-center gap-4 flex-wrap';
+                
+                question.options.forEach((option, optIndex) => {
+                    const optionContainer = document.createElement('div');
+                    optionContainer.className = 'option-container';
+                    
+                    const button = document.createElement('button');
+                    button.className = 'btn-option';
+                    button.textContent = option;
+                    button.onclick = () => checkAnswer(index, option, button);
+                    optionContainer.appendChild(button);
+                    
+                    const formulaDiv = document.createElement('div');
+                    formulaDiv.className = 'mathjax-formula';
+                    formulaDiv.innerHTML = `\\(${question.formulas[optIndex]}\\)`;
+                    optionContainer.appendChild(formulaDiv);
+                    
+                    optionsDiv.appendChild(optionContainer);
+                });
+                
+                questionDiv.appendChild(optionsDiv);
+                
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.id = `feedback-${index}`;
+                feedbackDiv.className = 'mt-4 text-center';
+                questionDiv.appendChild(feedbackDiv);
+                
+                questionsDiv.appendChild(questionDiv);
+            });
+            MathJax.typeset();
+        }
+
+        // Check answer
+        function checkAnswer(questionIndex, selectedOption, button) {
+            const question = questions[questionIndex];
+            const correct = selectedOption === question.correct_answer;
+            if (correct) score++;
+            
+            const feedbackDiv = document.getElementById(`feedback-${questionIndex}`);
+            const feedbackMessage = correct
+                ? `Chúc mừng bạn đã chọn phương án đúng là ${selectedOption}. Giải thích ở link: <a href="${question.explanation_links[1]}" target="_blank" class="text-blue-500 underline">${question.explanation_links[1]}</a>`
+                : `Bạn chọn ${selectedOption} là sai, Lựa chọn đúng là ${question.correct_answer}. Giải thích ở link: <a href="${question.explanation_links[0]}" target="_blank" class="text-blue-500 underline">${question.explanation_links[0]}</a>`;
+            feedbackDiv.innerHTML = feedbackMessage;
+
+            // Update button colors
+            const buttons = button.parentElement.parentElement.querySelectorAll('button');
+            buttons.forEach(btn => {
+                if (btn.textContent === question.correct_answer) {
+                    btn.className = 'btn-option btn-correct';
+                } else if (btn === button) {
+                    btn.className = 'btn-option btn-incorrect';
+                } else {
+                    btn.className = 'btn-option';
+                }
+                btn.disabled = true;
+            });
+        }
+
+        // Finish quiz
+        function finishQuiz() {
+            if (timerRunning) {
+                clearInterval(timerInterval);
+                timerRunning = false;
+                document.getElementById('timer-box').textContent = `Đã Hoàn thành trong: ${seconds} giây`;
+            }
+            const percentage = (score / totalQuestions) * 100;
+            const grade = ((score / totalQuestions) * 10).toFixed(1);
+            document.getElementById('quizScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.remove('hidden');
+            document.getElementById('resultSummary').textContent = `Quiz completed! Your score: ${score}/${totalQuestions}`;
+            document.getElementById('resultDetails').innerHTML = `Percentage: ${percentage}% <br> Grade: ${grade}/10 <br> Bạn đã làm bài thi này trong thời gian: ${seconds} giây`;
+        }
+
+        // Show certificate
+        function showEmailContent() {
+            const percentage = (score / totalQuestions) * 100;
+            const grade = ((score / totalQuestions) * 10).toFixed(1);
+            const emailContent = `
+                <div class="certificate-container" id="certificate">
+                    <div style="text-align: center; font-size: 30px; color: #9e1818; font-weight: bold; margin-bottom: 20px;">
+                        CHỨNG NHẬN HOÀN THÀNH
+                    </div>
+                    <div style="text-align: center; font-size: 24px; color: #333; margin-bottom: 20px;">
+                        Bài tập Minor và Cofactor Ma Trận
+                    </div>
+                    <div style="margin: 20px 0; font-size: 16px; color: #555;">
+                        <div style="padding: 15px; border: 1px solid #4CAF50; border-radius: 8px; background-color: #e8f5e9; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); margin-bottom: 15px;">
+                            <p><strong>Họ và Tên:</strong> <span style="font-size: 18px; font-weight: bold; color: #4CAF50; background-color: #f1f8e9; padding: 2px 6px; border-radius: 4px;">${studentName}</span></p>
+                            <p><strong>Mã Số Sinh Viên:</strong> <span style="font-size: 18px; font-weight: bold; color: #4CAF50; background-color: #f1f8e9; padding: 2px 6px; border-radius: 4px;">${studentId}</span></p>
+                        </div>
+                        <div style="padding: 15px; border: 1px solid #4CAF50; border-radius: 8px; background-color: #e8f5e9; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); margin-bottom: 15px;">
+                            <p>Điểm số: <span style="font-size: 20px; font-weight: bold; color: #ff6347;">${grade}/10</span></p>
+                            <p>Tỷ lệ hoàn thành: <span style="font-size: 20px; font-weight: bold; color: #32cd32;">${percentage}%</span></p>
+                        </div>
+                        <div style="padding: 15px; border: 1px solid #4CAF50; border-radius: 8px; background-color: #e8f5e9; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                            <p>Bạn đã làm bài thi này trong thời gian: <span style="font-size: 18px; font-weight: bold; color: #555;">${seconds} giây</span></p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 30px; font-size: 14px; text-align: center; color: #777;">
+                        Được cấp bởi,<br>Quiz Organizer<br>
+                        Ngày cấp: ${new Date().toLocaleDateString('vi-VN')}
+                    </div>
+                </div>
+            `;
+            document.getElementById('emailContent').innerHTML = emailContent;
+            document.getElementById('emailModal').classList.remove('hidden');
+            document.getElementById('emailModal').classList.add('flex');
+        }
+
+        // Download PDF
+        function downloadPDF() {
+            const element = document.getElementById('certificate');
+            const opt = {
+                margin: 0.5,
+                filename: 'Certificate.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // Close modal
+        function closeEmailModal() {
+            document.getElementById('emailModal').classList.add('hidden');
+        }
+
+        // Initialize event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('startQuizButton').addEventListener('click', startQuiz);
+        });
+    </script>
+</body>
+</html>
